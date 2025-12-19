@@ -1,0 +1,32 @@
+Platform Macros Used
+#if WITH_EDITOR // Code that should only run in the Unreal Editor, e.g., validation checks.
+#if PLATFORM_WINDOWS // Windows-specific API calls or file paths.
+#if UE_SERVER // Code that should only run on a dedicated server build.
+UE_LOG(LogChannel, Log, TEXT("Log message")) // Use Unreal's logging macros, which handle platform-specific output.
+Implementation Guide
+🚀 Implementation Order
+1
+Create the Unreal Engine C++ Project named 'UmbralDecay'.
+2
+Add placeholder component classes like UHealthComponent and UInventoryComponent.
+3
+Implement the base Character classes (DecayPlayerCharacter) and the AI Controller (DecayZombieAIController).
+4
+Implement the Player Controller (DecayPlayerController) with camera logic.
+5
+Create the Game Director (ADecayGameDirector) and place it in the persistent level.
+6
+Set up Input Bindings in Project Settings to match the control scheme.
+7
+Implement the HUD (ADecayHUD) and create basic UMG Widget Blueprints for it to use.
+8
+Implement the Game Instance (UDecayGameInstance) and the Save Game object (UDecaySaveGame) for persistence.
+9
+Create a Behavior Tree and Blackboard asset for the zombie AI and link them in a Zombie Character Blueprint.
+10
+Iterate on systems, adding functionality to crafting, inventory, and AI behaviors.
+LOD & Rendering Considerations
+**Zombie LODs**: For hordes, zombies must have 3-4 LOD levels. The lowest LOD should have a drastically reduced triangle count (<500) and simplified material. At extreme distances, consider replacing the skeletal mesh with a 2D impostor.
+**Animation LODs**: Utilize Unreal's Animation Budgeting system. Far-away zombies should update animations at a much lower frequency (e.g., 5-10hz) or have them disabled entirely if they are barely visible.
+**Environment HLODs**: For outdoor areas with many buildings or props, generate Hierarchical LODs (HLODs) to merge distant actors into single proxies, dramatically reducing draw calls.
+**Particle Effects**: Effects for bullet impacts, blood, and explosions must use LODs. Distant effects should use fewer, larger particles or be disabled completely. made by genesis studio

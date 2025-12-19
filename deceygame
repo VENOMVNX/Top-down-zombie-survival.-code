@@ -1,0 +1,132 @@
+// Copyright 2024, Studio Zenith. All Rights Reserved.
+
+#include "Core/DecayGameInstance.h"
+#include "Core/DecaySaveGame.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/DecayPlayerCharacter.h"
+
+const FString UDecayGameInstance::DEFAULT_SLOT_NAME = TEXT("DefaultSaveSlot");
+const int32 UDecayGameInstance::DEFAULT_USER_INDEX = 0;
+
+void UDecayGameInstance::Init()
+{
+    Super::Init();
+}
+
+void UDecayGameInstance::SaveGame(const FString& SlotName)
+{
+    // Create a new save game object to store our data
+    UDecaySaveGame* SaveGameInstance = Cast<UDecaySaveGame>(UGameplayStatics::CreateSaveGameObject(UDecaySaveGame::StaticClass()));
+    if (!SaveGameInstance)
+    { 
+        UE_LOG(LogTemp, Error, TEXT("Failed to create SaveGameObject."));
+        return; 
+    }
+
+    // Populate the save game object with current game data
+    PopulateSaveData(SaveGameInstance);
+
+    // Set up the delegate for when saving is complete
+    FAsyncSaveGameToSlotDelegate SavedDelegate;
+    SavedDelegate.BindUObject(this, &UDecayGameInstance::OnSaveGameComplete);
+
+    // Asynchronously save the game
+    UGameplayStatics::AsyncSaveGameToSlot(SaveGameInstance, SlotName, DEFAULT_USER_INDEX, SavedDelegate);
+    UE_LOG(LogTemp, Log, TEXT("Async save requested for slot: %s"), *SlotName);
+}
+
+void UDecayGameInstance::LoadGame(const FString& SlotName)
+{
+    if (!UGameplayStatics::DoesSaveGameExist(SlotName, DEFAULT_USER_INDEX))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Attempted to load game from slot '%s', but it does not exist."), *SlotName);
+        OnLoadGameComplete(SlotName, DEFAULT_USER_INDEX, nullptr); // Signal completion with failure
+        return;
+    }
+
+    // Set up delegate for when loading is complete
+    FAsyncLoadGameFromSlotDelegate LoadedDelegate;
+    LoadedDelegate.BindUObject(this, &UDecayGameInstance::OnLoadGameComplete);
+
+    // Asynchronously load the game
+    UGameplayStatics::AsyncLoadGameFromSlot(SlotName, DEFAULT_USER_INDEX, LoadedDelegate);
+    UE_LOG(LogTemp, Log, TEXT("Async load requested for slot: %s"), *SlotName);
+}
+
+void UDecayGameInstance::OnSaveGameComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess)
+{
+    if (bSuccess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Game saved successfully to slot: %s"), *SlotName);
+        OnGameSaved.Broadcast(SlotName, bSuccess);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to save game to slot: %s"), *SlotName);
+        OnGameSaved.Broadcast(SlotName, bSuccess);
+    }
+}
+
+void UDecayGameInstance::OnLoadGameComplete(const FString& SlotName, const int32 UserIndex, USaveGame* LoadedData)
+{
+    if (LoadedData)
+    {
+        UDecaySaveGame* SaveGameInstance = Cast<UDecaySaveGame>(LoadedData);
+        if (SaveGameInstance)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Game loaded successfully from slot: %s"), *SlotName);
+            ApplySaveData(SaveGameInstance);
+            OnGameLoaded.Broadcast(SlotName, true);
+            return;
+        }
+    }
+    
+    UE_LOG(LogTemp, Error, TEXT("Failed to load game from slot: %s"), *SlotName);
+    OnGameLoaded.Broadcast(SlotName, false);
+}
+
+void UDecayGameInstance::PopulateSaveData(UDecaySaveGame* SaveData)
+{
+    if (!SaveData) return;
+
+    // This is a stub. In a real game, you would get data from all relevant systems.
+    // Save Player Data    
+    APlayerController* PC = GetFirstLocalPlayerController();
+    if(PC)
+    {
+        ADecayPlayerCharacter* PlayerChar = Cast<ADecayPlayerCharacter>(PC->GetPawn());
+        if (PlayerChar)
+        {
+             SaveData->PlayerTransform = PlayerChar->GetTransform();
+             // ... save inventory, health etc.
+        }
+    }
+
+    // Save Game Director Data
+    // ADecayGameDirector* Director = ...
+    // SaveData->TimeOfDay = Director->GetTimeOfDay();
+
+    UE_LOG(LogTemp, Log, TEXT("Populating save data..."));
+}
+
+void UDecayGameInstance::ApplySaveData(UDecaySaveGame* SaveData)
+{
+    if (!SaveData) return;
+
+    // This is a stub. This logic is highly dependent on when loading occurs (e.g., in menu vs in-game)
+    // A common pattern is to load data, then travel to the correct map, 
+    // and have the GameMode apply the data to the newly spawned player.
+
+    APlayerController* PC = GetFirstLocalPlayerController();
+    if(PC)
+    {
+        ADecayPlayerCharacter* PlayerChar = Cast<ADecayPlayerCharacter>(PC->GetPawn());
+        if (PlayerChar)
+        {
+             PlayerChar->SetActorTransform(SaveData->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
+             // ... apply inventory, health etc.
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Applying loaded save data..."));
+}
